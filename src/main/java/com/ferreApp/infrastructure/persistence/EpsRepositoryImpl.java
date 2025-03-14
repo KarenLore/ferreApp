@@ -5,42 +5,46 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import com.ferreApp.domain.entities.Eps;
 import com.ferreApp.domain.repositories.EpsRepository;
 import com.ferreApp.infrastructure.database.ConnectionDb;
 
-public class EpsRepositoryImpl implements EpsRepository{
+public class EpsRepositoryImpl implements EpsRepository {
     private final ConnectionDb connectionDb;
 
     public EpsRepositoryImpl(ConnectionDb connectionDb) {
         this.connectionDb = connectionDb;
     }
-
     @Override
     public void save(Eps eps) {
         String sqlInsert = "INSERT INTO eps (name) VALUES (?)";
-        try (Connection conn = connectionDb.getConexion();
-            PreparedStatement ps = conn.prepareStatement(sqlInsert)){
-                ps.setString(1, eps.getName());
-                ps.executeUpdate();
-        }catch (SQLException e){
+        try(Connection conn = connectionDb.getConexion();
+            PreparedStatement ps = conn.prepareStatement(sqlInsert)) {
+            ps.setString(1, eps.getName());
+            ps.executeUpdate();
+        } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
     @Override
     public Eps findById(int id) {
-        String sqlSelect = "SELECT id, name FROM eps WHERE id = ?";
+        String sqlSelect = "SELECT id,name FROM eps WHERE id = ?";
         try(Connection conn = connectionDb.getConexion();
-        PreparedStatement ps = conn.prepareStatement(sqlSelect)) {
+            PreparedStatement ps = conn.prepareStatement(sqlSelect)) {
             ps.setInt(1, id);
             ResultSet rs = ps.executeQuery();
             if(rs.next()) {
-                return new Eps(rs.getInt(id), rs.getString("name")); 
+                return new Eps(id, rs.getString("name"));
             }
-        } catch (SQLException e){
+        } catch (SQLException e) {
             e.printStackTrace();
         }
         return null;
@@ -48,27 +52,27 @@ public class EpsRepositoryImpl implements EpsRepository{
 
     @Override
     public List<Eps> findAll() {
-        List<Eps> epslList = new ArrayList<>();
+        List<Eps> epsList = new ArrayList<>();
         String sqlSelect = "SELECT id, name FROM eps";
         try(Connection conn = connectionDb.getConexion();
-        PreparedStatement ps = conn.prepareStatement(sqlSelect);
-        ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                epslList.add(new Eps(rs.getInt("id"), rs.getString("name")));
+            PreparedStatement ps = conn.prepareStatement(sqlSelect);
+            ResultSet rs = ps.executeQuery()) {
+            while(rs.next()) {
+                epsList.add(new Eps(rs.getInt("id"), rs.getString("name")));
             }
-        }catch (SQLException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
         }
-        return null;
+        return epsList;
     }
 
     @Override
     public void update(Eps eps) {
         String sqlUpdate = "UPDATE eps SET name = ? WHERE id = ?";
         try(Connection conn = connectionDb.getConexion();
-        PreparedStatement ps = conn.prepareStatement(sqlUpdate)) {
-            ps.setInt(1, eps.getId());
-            ps.setString(2, eps.getName());
+            PreparedStatement ps = conn.prepareStatement(sqlUpdate)) {
+            ps.setString(1, eps.getName());
+            ps.setInt(2, eps.getId());
             ps.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -79,12 +83,68 @@ public class EpsRepositoryImpl implements EpsRepository{
     public void delete(int id) {
         String sqlDelete = "DELETE FROM eps WHERE id = ?";
         try(Connection conn = connectionDb.getConexion();
-        PreparedStatement ps = conn.prepareStatement(sqlDelete)) {
+            PreparedStatement ps = conn.prepareStatement(sqlDelete)) {
             ps.setInt(1, id);
             ps.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
-    
+
+    @Override
+    public Map<Integer, Eps> findAllAsMap() {
+        Map<Integer, Eps> epsMap = new HashMap<>();
+        String sqlSelect = "SELECT id, name FROM eps";
+        try(Connection conn = connectionDb.getConexion();
+            PreparedStatement ps = conn.prepareStatement(sqlSelect);
+            ResultSet rs = ps.executeQuery()) {
+            while(rs.next()) {
+                int id = rs.getInt("id");
+                Eps eps = new Eps(id, rs.getString("name"));
+                epsMap.put(id, eps);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return epsMap;
+    }
+
+    @Override
+    public List<Eps> findByNameContaining(String searchTerm) {
+        return findAllAsMap().values().stream()
+            .filter(eps -> eps.getName().toLowerCase().contains(searchTerm.toLowerCase()))
+            .collect(Collectors.toList());
+    }
+
+    @Override
+    public Optional<Eps> findFirstByName(String name) {
+        return findAllAsMap().values().stream()
+            .filter(eps -> eps.getName().equalsIgnoreCase(name))
+            .findFirst();
+    }
+
+    @Override
+    public Map<Integer, Eps> findByIds(List<Integer> ids) {
+        return findAllAsMap().entrySet().stream()
+            .filter(entry -> ids.contains(entry.getKey()))
+            .collect(Collectors.toMap(
+                Map.Entry::getKey,
+                Map.Entry::getValue
+            ));
+    }
+
+    @Override
+    public List<Eps> findByNameStartingWith(String prefix) {
+        return findAllAsMap().values().stream()
+            .filter(eps -> eps.getName().toLowerCase().startsWith(prefix.toLowerCase()))
+            .sorted(Comparator.comparing(Eps::getName))
+            .collect(Collectors.toList());
+    }
+    @Override
+    public List<Eps> findByNameContainingV2(String searchTerm, Map<Integer, Eps> epsMap) {
+        return  epsMap.values().stream()
+            .filter(eps -> eps.getName().toLowerCase().contains(searchTerm.toLowerCase()))
+            .collect(Collectors.toList());
+    }
+
 }

@@ -7,11 +7,13 @@ public class Eps {
     public Eps(String name) {
         this.name = name;
     }
+
     
     public Eps(int id, String name) {
         this.id = id;
         this.name = name;
     }
+
 
     public int getId() {
         return id;
@@ -25,4 +27,6 @@ public class Eps {
     public void setName(String name) {
         this.name = name;
     }
+
+    
 }
